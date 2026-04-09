@@ -1,0 +1,1709 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>AutoRescue AI</title>
+<style>
+/* ─────────────────────────────────────────────────────────
+   RESET & CSS VARIABLES
+   These never change — entire app uses these tokens.
+───────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --red:        #E24B4A;
+  --red-dark:   #A32D2D;
+  --red-light:  #FCEBEB;
+  --red-mid:    #F09595;
+  --white:      #ffffff;
+  --gray-light: #f8f8f7;
+  --gray-mid:   #e5e5e3;
+  --gray-text:  #5f5e5a;
+  --text:       #2c2c2a;
+  --radius:     14px;
+  --shadow:     0 2px 16px rgba(226,75,74,0.10);
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--gray-light);
+  color: var(--text);
+  min-height: 100vh;
+}
+
+/* ─────────────────────────────────────────────────────────
+   HEADER
+───────────────────────────────────────────────────────── */
+header {
+  background: var(--red-dark);
+  color: white;
+  padding: 14px 24px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+header .logo {
+  width: 36px; height: 36px;
+  background: white;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+}
+header .logo svg { width: 20px; height: 20px; }
+header h1 { font-size: 20px; font-weight: 700; letter-spacing: -0.3px; }
+header .badge {
+  margin-left: auto;
+  background: rgba(255,255,255,0.15);
+  border: 1px solid rgba(255,255,255,0.3);
+  border-radius: 20px;
+  padding: 4px 12px;
+  font-size: 12px; font-weight: 600; letter-spacing: 0.5px;
+}
+/* User chip — shown after login completes */
+header .user-chip {
+  display: none;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255,255,255,0.15);
+  border: 1px solid rgba(255,255,255,0.3);
+  border-radius: 20px;
+  padding: 4px 12px 4px 8px;
+  font-size: 13px; font-weight: 600;
+}
+header .user-chip .avatar {
+  width: 22px; height: 22px;
+  background: var(--red-mid);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 800; color: var(--red-dark);
+}
+
+/* ─────────────────────────────────────────────────────────
+   MAIN CONTAINER
+───────────────────────────────────────────────────────── */
+main {
+  max-width: 780px;
+  margin: 0 auto;
+  padding: 32px 16px 80px;
+}
+
+/* ─────────────────────────────────────────────────────────
+   LAUNCH SCREEN  (NEW — same design language as rest of app)
+───────────────────────────────────────────────────────── */
+#launchScreen {
+  display: flex;          /* shown first */
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 80vh;
+  text-align: center;
+  gap: 0;
+}
+/* Pulsing logo circle — same animation used on old home screen */
+.launch-icon {
+  width: 110px; height: 110px;
+  background: var(--red-light);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: 28px;
+  animation: pulse 2s ease-in-out infinite;
+}
+.launch-icon svg { width: 58px; height: 58px; }
+@keyframes pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(226,75,74,0.30); transform: scale(1); }
+  50%       { box-shadow: 0 0 0 20px rgba(226,75,74,0); transform: scale(1.04); }
+}
+#launchScreen h2 {
+  font-size: 38px; font-weight: 800;
+  color: var(--red-dark); margin-bottom: 10px; letter-spacing: -0.5px;
+}
+#launchScreen .launch-sub {
+  font-size: 15px; color: var(--gray-text);
+  max-width: 320px; line-height: 1.6; margin-bottom: 36px;
+}
+/* Dots loader — purely CSS, no new design tokens */
+.launch-loader {
+  display: flex; align-items: center; gap: 6px;
+}
+.launch-loader span {
+  font-size: 13px; color: var(--gray-text); font-weight: 500; margin-right: 4px;
+}
+.launch-dot {
+  width: 7px; height: 7px; border-radius: 50%; background: var(--red-mid);
+  animation: dotBounce 1.2s ease-in-out infinite;
+}
+.launch-dot:nth-child(2) { animation-delay: 0.15s; }
+.launch-dot:nth-child(3) { animation-delay: 0.30s; }
+.launch-dot:nth-child(4) { animation-delay: 0.45s; }
+@keyframes dotBounce {
+  0%, 80%, 100% { transform: translateY(0);  background: var(--red-mid); }
+  40%           { transform: translateY(-7px); background: var(--red); }
+}
+
+/* ─────────────────────────────────────────────────────────
+   CARD
+───────────────────────────────────────────────────────── */
+.card {
+  background: var(--white);
+  border-radius: var(--radius);
+  padding: 20px 22px;
+  box-shadow: var(--shadow);
+  animation: fadeUp 0.5s ease both;
+}
+@keyframes fadeUp { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:none; } }
+
+.card-header {
+  display: flex; align-items: center;
+  gap: 10px; margin-bottom: 16px;
+}
+.card-icon {
+  width: 34px; height: 34px; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px; flex-shrink: 0;
+}
+.card-icon.red    { background: var(--red-light); }
+.card-icon.green  { background: #EAF3DE; }
+.card-icon.blue   { background: #E6F1FB; }
+.card-icon.amber  { background: #FAEEDA; }
+.card-icon.purple { background: #EEEDFE; }
+.card-icon.teal   { background: #E1F5EE; }
+.card h3  { font-size: 14px; font-weight: 700; color: var(--text); }
+.card .sub { font-size: 11px; color: var(--gray-text); font-weight: 500; letter-spacing: 0.3px; text-transform: uppercase; }
+
+/* Card animation stagger */
+.card:nth-child(1) { animation-delay: 0.05s; }
+.card:nth-child(2) { animation-delay: 0.10s; }
+.card:nth-child(3) { animation-delay: 0.15s; }
+.card:nth-child(4) { animation-delay: 0.20s; }
+.card:nth-child(5) { animation-delay: 0.25s; }
+.card:nth-child(6) { animation-delay: 0.30s; }
+.card:nth-child(7) { animation-delay: 0.35s; }
+
+/* ─────────────────────────────────────────────────────────
+   GRID
+───────────────────────────────────────────────────────── */
+.grid-2 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 18px;
+}
+
+/* ─────────────────────────────────────────────────────────
+   STATUS ROWS
+───────────────────────────────────────────────────────── */
+.status-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 0; border-bottom: 1px solid var(--gray-mid); font-size: 14px;
+}
+.status-row:last-child { border-bottom: none; padding-bottom: 0; }
+.dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.dot.red   { background: var(--red); animation: blink 1.2s ease-in-out infinite; }
+.dot.green { background: #639922; }
+.dot.amber { background: #BA7517; }
+@keyframes blink { 0%,100%{opacity:1;} 50%{opacity:0.3;} }
+.status-row .label { flex: 1; font-weight: 500; }
+.status-row .tag { font-size: 11px; font-weight: 600; border-radius: 20px; padding: 2px 8px; }
+.tag.sent    { background: #EAF3DE; color: #3B6D11; }
+.tag.calling { background: var(--red-light); color: var(--red-dark); }
+.tag.shared  { background: #E6F1FB; color: #185FA5; }
+
+/* ─────────────────────────────────────────────────────────
+   FORM ELEMENTS
+───────────────────────────────────────────────────────── */
+.form-group { margin-bottom: 16px; }
+.form-group label {
+  display: block; font-size: 12px; font-weight: 600; color: var(--gray-text);
+  text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 6px;
+}
+.form-group input,
+.form-group select,
+.form-group textarea {
+  width: 100%; padding: 11px 14px;
+  border: 1.5px solid var(--gray-mid); border-radius: 10px;
+  font-size: 15px; font-family: inherit; color: var(--text);
+  background: var(--gray-light); outline: none;
+  transition: border-color 0.2s; appearance: none;
+}
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus { border-color: var(--red); background: var(--white); }
+.form-group textarea { resize: vertical; min-height: 72px; line-height: 1.5; }
+.form-group select { cursor: pointer; }
+.input-error { border-color: var(--red) !important; }
+
+/* OTP 4-box row */
+.otp-row { display: flex; gap: 8px; }
+.otp-row input {
+  flex: 1; text-align: center; font-size: 22px; font-weight: 800;
+  letter-spacing: 4px; padding: 12px 8px;
+}
+.otp-note { font-size: 12px; color: var(--gray-text); margin-top: 6px; }
+
+/* Phone + send-OTP side-by-side */
+.phone-row { display: flex; gap: 8px; }
+.phone-row input { flex: 1; }
+.send-otp-btn {
+  background: var(--red-light); border: 1.5px solid var(--red-mid);
+  color: var(--red-dark); border-radius: 10px; padding: 0 16px;
+  font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit;
+  white-space: nowrap; transition: background 0.2s; flex-shrink: 0;
+}
+.send-otp-btn:hover { background: var(--red-mid); }
+.send-otp-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Primary full-width button */
+.full-btn {
+  width: 100%; background: var(--red); color: white; border: none;
+  border-radius: 50px; padding: 14px; font-size: 16px; font-weight: 700;
+  cursor: pointer; margin-top: 8px; font-family: inherit;
+  transition: background 0.2s, transform 0.15s;
+  box-shadow: 0 4px 20px rgba(226,75,74,0.30);
+}
+.full-btn:hover  { background: var(--red-dark); transform: translateY(-1px); }
+.full-btn:active { transform: scale(0.98); }
+.full-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; box-shadow: none; }
+
+/* Contact rows */
+.contact-row { display: flex; gap: 8px; margin-bottom: 8px; }
+.contact-row input { flex: 1; }
+.remove-btn {
+  background: var(--red-light); border: none; border-radius: 10px;
+  color: var(--red-dark); font-size: 16px; width: 40px;
+  cursor: pointer; flex-shrink: 0; transition: background 0.15s;
+}
+.remove-btn:hover { background: var(--red-mid); }
+.add-contact-btn {
+  background: none; border: 1.5px dashed var(--gray-mid);
+  border-radius: 10px; padding: 9px 16px; font-size: 13px;
+  font-weight: 600; color: var(--gray-text); cursor: pointer;
+  width: 100%; font-family: inherit; transition: border-color 0.2s, color 0.2s;
+}
+.add-contact-btn:hover { border-color: var(--red); color: var(--red); }
+
+/* Back link */
+.back-link {
+  background: none; border: none; font-size: 13px;
+  color: var(--gray-text); cursor: pointer; font-family: inherit;
+  display: block; margin: 12px auto 0;
+}
+.back-link:hover { color: var(--red); }
+
+/* ─────────────────────────────────────────────────────────
+   CONDITION CHIPS  (FIX: rely on .selected class, not cb.checked)
+───────────────────────────────────────────────────────── */
+.cond-chip {
+  display: inline-flex; align-items: center;
+  padding: 6px 12px; border-radius: 20px;
+  border: 1.5px solid var(--gray-mid); background: var(--white);
+  font-size: 13px; font-weight: 600; color: var(--gray-text);
+  cursor: pointer; transition: border-color 0.2s, background 0.2s;
+  user-select: none;
+}
+.cond-chip:hover    { border-color: var(--red); color: var(--red); }
+.cond-chip.selected { border-color: var(--red); background: var(--red-light); color: var(--red-dark); }
+
+/* ─────────────────────────────────────────────────────────
+   ALERT BANNER
+───────────────────────────────────────────────────────── */
+.alert-banner {
+  background: var(--red); color: white;
+  border-radius: var(--radius); padding: 18px 22px;
+  display: flex; align-items: center; gap: 16px;
+  animation: slideIn 0.4s ease;
+}
+@keyframes slideIn { from { opacity:0; transform:translateY(-12px); } to { opacity:1; transform:none; } }
+.alert-banner .icon { font-size: 28px; flex-shrink: 0; }
+.alert-banner h3 { font-size: 18px; font-weight: 800; }
+.alert-banner p  { font-size: 13px; opacity: 0.88; margin-top: 2px; }
+.severity-chip {
+  margin-left: auto; background: rgba(255,255,255,0.2);
+  border: 1px solid rgba(255,255,255,0.4);
+  border-radius: 20px; padding: 6px 14px;
+  font-size: 12px; font-weight: 700; white-space: nowrap; flex-shrink: 0;
+}
+
+/* ─────────────────────────────────────────────────────────
+   MAP
+───────────────────────────────────────────────────────── */
+.map-wrap {
+  border-radius: 10px; overflow: hidden;
+  height: 220px; border: 1px solid var(--gray-mid);
+}
+.map-wrap iframe { width: 100%; height: 100%; border: none; }
+
+/* ─────────────────────────────────────────────────────────
+   AI GUIDANCE STEPS
+───────────────────────────────────────────────────────── */
+.step-list { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+.step-item { display: flex; align-items: flex-start; gap: 12px; font-size: 14px; line-height: 1.5; }
+.step-num {
+  width: 24px; height: 24px; background: var(--red); color: white;
+  border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 800; flex-shrink: 0; margin-top: 1px;
+}
+/* Personalized steps get a purple tint to stand out */
+.step-num.personal { background: #533AB7; }
+
+/* ─────────────────────────────────────────────────────────
+   XAI (Explainable AI)
+───────────────────────────────────────────────────────── */
+.xai-reason {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px; border-radius: 10px; margin-bottom: 8px;
+  font-size: 13px; font-weight: 500;
+}
+.xai-reason:last-child { margin-bottom: 0; }
+.xai-reason.high   { background: var(--red-light); color: var(--red-dark); }
+.xai-reason.medium { background: #FAEEDA; color: #854F0B; }
+.xai-reason.low    { background: #EAF3DE; color: #3B6D11; }
+.xai-bar-wrap { margin-top: 14px; }
+.xai-bar-label { font-size: 12px; color: var(--gray-text); margin-bottom: 4px; display: flex; justify-content: space-between; }
+.xai-bar-track { height: 6px; background: var(--gray-mid); border-radius: 3px; overflow: hidden; }
+.xai-bar-fill  { height: 100%; border-radius: 3px; transition: width 1.2s ease; }
+
+/* ─────────────────────────────────────────────────────────
+   COUNTDOWN
+───────────────────────────────────────────────────────── */
+.countdown-ring { width: 80px; height: 80px; position: relative; flex-shrink: 0; }
+.countdown-ring svg { transform: rotate(-90deg); }
+.countdown-ring .ring-bg { fill: none; stroke: var(--gray-mid); stroke-width: 6; }
+.countdown-ring .ring-fg { fill: none; stroke: var(--red); stroke-width: 6; stroke-linecap: round; transition: stroke-dashoffset 1s linear; }
+.countdown-ring .num {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+  font-size: 24px; font-weight: 800; color: var(--red-dark);
+}
+.countdown-row { display: flex; align-items: center; gap: 20px; }
+.countdown-info { flex: 1; }
+.countdown-info p { font-size: 14px; color: var(--gray-text); line-height: 1.5; }
+.cancel-btn {
+  width: 100%; margin-top: 16px; background: white;
+  border: 2px solid var(--red); color: var(--red);
+  border-radius: 50px; padding: 12px; font-size: 15px; font-weight: 700;
+  cursor: pointer; font-family: inherit;
+  transition: background 0.2s, color 0.2s, transform 0.1s;
+}
+.cancel-btn:hover  { background: var(--red); color: white; }
+.cancel-btn:active { transform: scale(0.97); }
+.cancelled-msg {
+  display: none; text-align: center; padding: 14px;
+  background: #EAF3DE; border-radius: 10px;
+  color: #3B6D11; font-weight: 600; font-size: 14px; margin-top: 12px;
+}
+
+/* ─────────────────────────────────────────────────────────
+   FLOATING VOICE BUTTON
+───────────────────────────────────────────────────────── */
+.voice-bar {
+  position: fixed; bottom: 24px; right: 24px;
+  display: none; flex-direction: column; align-items: center; gap: 6px; z-index: 99;
+}
+.voice-btn {
+  width: 54px; height: 54px; background: var(--red-dark); border: none;
+  border-radius: 50%; color: white; font-size: 22px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 4px 16px rgba(163,45,45,0.4); transition: transform 0.15s;
+}
+.voice-btn:hover { transform: scale(1.08); }
+.voice-label { font-size: 11px; color: var(--gray-text); font-weight: 600; }
+
+/* ─────────────────────────────────────────────────────────
+   VOICE INLINE BUTTON (inside AI Guidance card)
+───────────────────────────────────────────────────────── */
+.voice-inline-btn {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  background: var(--red-light); border: 1.5px solid var(--red-mid);
+  border-radius: 10px; padding: 11px 16px;
+  font-size: 14px; font-weight: 700; color: var(--red-dark);
+  cursor: pointer; font-family: inherit; margin-top: 14px;
+  transition: background 0.2s, transform 0.1s;
+}
+.voice-inline-btn:hover  { background: var(--red-mid); transform: translateY(-1px); }
+.voice-inline-btn:active { transform: scale(0.98); }
+.vi-icon { font-size: 18px; flex-shrink: 0; }
+.vi-sub  { font-size: 11px; font-weight: 500; color: var(--red); margin-top: 1px; }
+
+/* ─────────────────────────────────────────────────────────
+   SCREEN CONTAINERS
+   All screens use display:none by default except launchScreen.
+───────────────────────────────────────────────────────── */
+
+/* Login */
+#loginScreen {
+  display: none;
+  flex-direction: column; align-items: center; justify-content: center; min-height: 70vh;
+}
+#loginScreen .login-card { width: 100%; max-width: 460px; }
+.login-steps { display: flex; align-items: center; justify-content: center; gap: 6px; margin-bottom: 20px; }
+.lstep { width: 8px; height: 8px; border-radius: 50%; background: var(--gray-mid); transition: background 0.3s, width 0.3s; }
+.lstep.active { background: var(--red); width: 22px; border-radius: 4px; }
+.lstep.done   { background: #639922; }
+.otp-sent-msg {
+  display: none; background: #EAF3DE; border-radius: 10px;
+  padding: 10px 14px; font-size: 13px; color: #3B6D11;
+  font-weight: 600; margin-bottom: 14px; text-align: center;
+}
+
+/* Emergency Type Selection */
+#selectionScreen {
+  display: none;
+  flex-direction: column; align-items: center; justify-content: center; min-height: 70vh;
+}
+#selectionScreen .sel-card { width: 100%; max-width: 480px; }
+.etype-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 20px; }
+.etype-btn {
+  background: var(--white); border: 2px solid var(--gray-mid);
+  border-radius: var(--radius); padding: 22px 14px;
+  cursor: pointer; text-align: center; font-family: inherit;
+  transition: border-color 0.2s, background 0.2s, transform 0.15s;
+}
+.etype-btn:hover  { border-color: var(--red); background: var(--red-light); transform: translateY(-2px); }
+.etype-btn.active { border-color: var(--red); background: var(--red-light); }
+.etype-btn .etype-icon  { font-size: 32px; display: block; margin-bottom: 8px; }
+.etype-btn .etype-label { font-size: 14px; font-weight: 700; color: var(--text); display: block; }
+.etype-btn .etype-desc  { font-size: 11px; color: var(--gray-text); display: block; margin-top: 3px; }
+
+/* Detection */
+#detectionScreen {
+  display: none;
+  flex-direction: column; align-items: center; justify-content: center;
+  min-height: 70vh; text-align: center; gap: 20px;
+}
+.detect-ring {
+  width: 110px; height: 110px; border-radius: 50%;
+  border: 4px solid var(--red-mid); border-top-color: var(--red);
+  animation: spin 0.9s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+#detectionScreen h2 { font-size: 26px; font-weight: 800; color: var(--red-dark); }
+#detectionScreen p  { font-size: 15px; color: var(--gray-text); }
+
+/* Placeholder (Medical / Fire / Safety) */
+#placeholderScreen {
+  display: none;
+  flex-direction: column; align-items: center; justify-content: center;
+  min-height: 70vh; text-align: center;
+}
+#placeholderScreen .ph-card { width: 100%; max-width: 420px; text-align: center; }
+#placeholderScreen .ph-icon { font-size: 56px; margin-bottom: 16px; display: block; }
+#placeholderScreen h2 { font-size: 22px; font-weight: 800; color: var(--red-dark); margin-bottom: 10px; }
+#placeholderScreen p  { font-size: 15px; color: var(--gray-text); line-height: 1.6; margin-bottom: 24px; }
+
+/* Dashboard */
+#dashboardScreen { display: none; flex-direction: column; gap: 18px; }
+
+/* ─────────────────────────────────────────────────────────
+   PERSONALIZED AI TIPS
+───────────────────────────────────────────────────────── */
+.ai-tip {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 10px 14px; border-radius: 10px; margin-bottom: 8px;
+  font-size: 13px; font-weight: 500;
+  background: #EEEDFE; color: #3C3489;
+}
+.ai-tip:last-child { margin-bottom: 0; }
+.ai-tip-icon { font-size: 15px; flex-shrink: 0; margin-top: 1px; }
+
+/* Coordinate boxes */
+.coord-row { display: flex; gap: 16px; margin-top: 14px; }
+.coord-box { flex: 1; background: #f8f8f7; border-radius: 8px; padding: 10px 12px; }
+.coord-box .coord-label { font-size: 11px; color: #888; font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; }
+.coord-box .coord-val   { font-size: 15px; font-weight: 700; margin-top: 2px; }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════
+     HEADER  — always visible
+═══════════════════════════════════════════════════════ -->
+<header>
+  <div class="logo">
+    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M12 2L3 7v10l9 5 9-5V7L12 2Z" fill="#E24B4A" stroke="#E24B4A" stroke-width="1"/>
+      <path d="M12 8v4M12 14h.01" stroke="white" stroke-width="2" stroke-linecap="round"/>
+    </svg>
+  </div>
+  <h1>AutoRescue AI</h1>
+  <div class="user-chip" id="headerUserChip">
+    <div class="avatar" id="headerAvatar">?</div>
+    <span id="headerName">User</span>
+  </div>
+  <span class="badge" id="headerBadge">LIVE DEMO</span>
+</header>
+
+<main>
+
+<!-- ═══════════════════════════════════════════════════
+     SCREEN 0 — LAUNCH / SPLASH
+     Auto-transitions to loginScreen after 2.5 seconds.
+═══════════════════════════════════════════════════════ -->
+<section id="launchScreen">
+  <div class="launch-icon">
+    <!-- Same SVG cross / alert icon as header -->
+    <svg viewBox="0 0 58 58" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="29" cy="29" r="27" fill="#FCEBEB" stroke="#E24B4A" stroke-width="2"/>
+      <!-- Cross (plus) shape for medical/emergency -->
+      <rect x="25" y="13" width="8" height="32" rx="3" fill="#E24B4A"/>
+      <rect x="13" y="25" width="32" height="8"  rx="3" fill="#E24B4A"/>
+    </svg>
+  </div>
+
+  <h2>AutoRescue AI</h2>
+  <p class="launch-sub">Zero-Action Emergency Response System</p>
+
+  <!-- Animated dots loader -->
+  <div class="launch-loader">
+    <span>Initializing</span>
+    <div class="launch-dot"></div>
+    <div class="launch-dot"></div>
+    <div class="launch-dot"></div>
+  </div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════════════
+     SCREEN 1 — LOGIN / SETUP  (3 steps)
+     Step 1: Name + Phone + OTP
+     Step 2: Emergency Contacts
+     Step 3: Medical Profile  ← FIXED
+═══════════════════════════════════════════════════════ -->
+<section id="loginScreen">
+  <div class="card login-card">
+
+    <!-- Progress dots -->
+    <div class="login-steps">
+      <div class="lstep active" id="lstep1"></div>
+      <div class="lstep"        id="lstep2"></div>
+      <div class="lstep"        id="lstep3"></div>
+    </div>
+
+    <!-- ── STEP 1: Identity + OTP ── -->
+    <div id="loginStep1">
+      <div class="card-header">
+        <div class="card-icon red">&#x1F464;</div>
+        <div>
+          <div class="sub">Step 1 of 3 — Identity</div>
+          <h3>Create Your Profile</h3>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Full Name</label>
+        <input type="text" id="inputName" placeholder="e.g. Arjun Sharma" />
+      </div>
+
+      <div class="form-group">
+        <label>Mobile Number</label>
+        <div class="phone-row">
+          <input type="tel" id="inputPhone" placeholder="+91 98765 43210" />
+          <button class="send-otp-btn" id="sendOtpBtn" onclick="sendOTP()">Send OTP</button>
+        </div>
+      </div>
+
+      <div id="otpSection" style="display:none;">
+        <div class="otp-sent-msg" id="otpSentMsg"></div>
+        <div class="form-group">
+          <label>Enter OTP</label>
+          <div class="otp-row">
+            <input type="text" id="otp1" maxlength="1" inputmode="numeric"
+              oninput="otpMove(this,'otp2')" onkeydown="otpBack(event,this,'')" />
+            <input type="text" id="otp2" maxlength="1" inputmode="numeric"
+              oninput="otpMove(this,'otp3')" onkeydown="otpBack(event,this,'otp1')" />
+            <input type="text" id="otp3" maxlength="1" inputmode="numeric"
+              oninput="otpMove(this,'otp4')" onkeydown="otpBack(event,this,'otp2')" />
+            <input type="text" id="otp4" maxlength="1" inputmode="numeric"
+              oninput="otpMove(this,'')"     onkeydown="otpBack(event,this,'otp3')" />
+          </div>
+          <div class="otp-note">Demo OTP: <strong>1234</strong></div>
+        </div>
+      </div>
+
+      <button class="full-btn" onclick="verifyOTP()">Verify &amp; Continue &#x2192;</button>
+    </div>
+
+    <!-- ── STEP 2: Emergency Contacts ── -->
+    <div id="loginStep2" style="display:none;">
+      <div class="card-header">
+        <div class="card-icon blue">&#x1F465;</div>
+        <div>
+          <div class="sub">Step 2 of 3 — Contacts</div>
+          <h3>Emergency Contacts</h3>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Emergency Contacts</label>
+        <div id="contactsList">
+          <div class="contact-row">
+            <input type="text" placeholder="Name &amp; Number (e.g. Father — +91 99999 00000)" />
+            <button class="remove-btn" onclick="removeContact(this)" title="Remove">&#x2715;</button>
+          </div>
+        </div>
+        <button class="add-contact-btn" onclick="addContact()">&#x2B;&nbsp; Add Another Contact</button>
+      </div>
+
+      <button class="full-btn" onclick="goToMedical()">Continue &#x2192;</button>
+      <button class="back-link" onclick="goToStep(1)">&#x2190;&nbsp; Back</button>
+    </div>
+
+    <!-- ── STEP 3: Medical Profile (FIXED) ── -->
+    <div id="loginStep3" style="display:none;">
+      <div class="card-header">
+        <div class="card-icon purple">&#x1FA7A;</div>
+        <div>
+          <div class="sub">Step 3 of 3 — Medical</div>
+          <h3>Medical Profile</h3>
+        </div>
+      </div>
+
+      <!-- Blood Group dropdown -->
+      <div class="form-group">
+        <label>Blood Group</label>
+        <select id="inputBloodGroup">
+          <option value="">Select blood group</option>
+          <option value="A+">A+</option>   <option value="A-">A-</option>
+          <option value="B+">B+</option>   <option value="B-">B-</option>
+          <option value="O+">O+</option>   <option value="O-">O-</option>
+          <option value="AB+">AB+</option> <option value="AB-">AB-</option>
+        </select>
+      </div>
+
+      <!--
+        MEDICAL CONDITIONS — FIXED
+        Each chip toggles the .selected class on click.
+        We read .selected chips (not checkbox.checked) in completeLogin()
+        to avoid the timing bug where checkbox state wasn't synced.
+      -->
+      <div class="form-group">
+        <label>Known Conditions — tap all that apply</label>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px;" id="conditionChips">
+          <div class="cond-chip" data-condition="diabetes">&#x1FA78; Diabetes</div>
+          <div class="cond-chip" data-condition="asthma">&#x1F4A8; Asthma</div>
+          <div class="cond-chip" data-condition="heart">&#x2764; Heart Condition</div>
+          <div class="cond-chip" data-condition="epilepsy">&#x26A1; Epilepsy</div>
+          <div class="cond-chip" data-condition="hypertension">&#x1F4C8; Hypertension</div>
+          <div class="cond-chip" data-condition="none">&#x2714; None</div>
+        </div>
+        <!-- Live feedback: shows selected conditions below the chips -->
+        <div id="conditionsFeedback"
+          style="display:none;margin-top:10px;padding:8px 12px;background:var(--red-light);
+                 border-radius:8px;font-size:13px;color:var(--red-dark);font-weight:600;">
+        </div>
+      </div>
+
+      <!-- Medications text area -->
+      <div class="form-group">
+        <label>Current Medications (optional)</label>
+        <textarea id="inputMeds" placeholder="e.g. Metformin 500mg, Aspirin 75mg"></textarea>
+      </div>
+
+      <!-- Allergies -->
+      <div class="form-group">
+        <label>Allergies (optional)</label>
+        <input type="text" id="inputAllergies" placeholder="e.g. Penicillin, Sulfa drugs" />
+      </div>
+
+      <button class="full-btn" onclick="completeLogin()">&#x1F511; Complete Setup &amp; Continue</button>
+      <button class="back-link" onclick="goToStep(2)">&#x2190;&nbsp; Back</button>
+    </div>
+
+  </div><!-- end login-card -->
+</section>
+
+
+<!-- ═══════════════════════════════════════════════════
+     SCREEN 2 — EMERGENCY TYPE SELECTION
+     Accident  → detectionScreen → dashboardScreen
+     Others    → placeholderScreen
+═══════════════════════════════════════════════════════ -->
+<section id="selectionScreen">
+  <div class="card sel-card">
+    <div class="card-header">
+      <div class="card-icon amber">&#x26A0;</div>
+      <div>
+        <div class="sub">Emergency Type</div>
+        <h3>What is the emergency?</h3>
+      </div>
+    </div>
+
+    <!-- Personalized greeting injected by JS after login -->
+    <p id="selGreeting" style="font-size:14px;color:var(--gray-text);margin-bottom:18px;line-height:1.5;"></p>
+
+    <div class="etype-grid">
+      <button class="etype-btn" onclick="selectEmergencyType(this,'accident')">
+        <span class="etype-icon">&#x1F4A5;</span>
+        <span class="etype-label">Accident</span>
+        <span class="etype-desc">Vehicle collision or crash</span>
+      </button>
+      <button class="etype-btn" onclick="selectEmergencyType(this,'medical')">
+        <span class="etype-icon">&#x1F6D1;</span>
+        <span class="etype-label">Medical Emergency</span>
+        <span class="etype-desc">Heart attack, seizure, injury</span>
+      </button>
+      <button class="etype-btn" onclick="selectEmergencyType(this,'fire')">
+        <span class="etype-icon">&#x1F525;</span>
+        <span class="etype-label">Fire</span>
+        <span class="etype-desc">Vehicle or building fire</span>
+      </button>
+      <button class="etype-btn" onclick="selectEmergencyType(this,'safety')">
+        <span class="etype-icon">&#x1F6E1;</span>
+        <span class="etype-label">Personal Safety</span>
+        <span class="etype-desc">Threat or unsafe situation</span>
+      </button>
+    </div>
+
+    <p style="font-size:12px;color:var(--gray-text);text-align:center;">
+      Tap any option above to activate the appropriate emergency response.
+    </p>
+  </div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════════════
+     SCREEN 3 — DETECTION ANIMATION  (Accident only)
+═══════════════════════════════════════════════════════ -->
+<section id="detectionScreen">
+  <div class="detect-ring"></div>
+  <h2>&#x1F6A8; Severe Accident Detected</h2>
+  <p>Analyzing situation — gathering sensor data, impact force, movement patterns…</p>
+</section>
+
+
+<!-- ═══════════════════════════════════════════════════
+     SCREEN 4 — PLACEHOLDER  (Medical / Fire / Safety)
+═══════════════════════════════════════════════════════ -->
+<section id="placeholderScreen">
+  <div class="card ph-card">
+    <span class="ph-icon" id="phIcon">&#x1F6D1;</span>
+    <h2 id="phTitle">Emergency Response</h2>
+    <p id="phBody">Emergency services are being notified. Please stay calm and follow verbal instructions.</p>
+    <button class="full-btn" onclick="showScreen('selectionScreen')">&#x2190;&nbsp; Back to Emergency Selection</button>
+  </div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════════════
+     SCREEN 5 — MAIN DASHBOARD  (Accident response)
+═══════════════════════════════════════════════════════ -->
+<section id="dashboardScreen">
+
+  <!-- A. Alert banner -->
+  <div class="alert-banner">
+    <div class="icon">&#x1F6A8;</div>
+    <div>
+      <h3 id="dashBannerTitle">Accident Response Activated</h3>
+      <p>All services notified &bull; Location shared &bull; AI guidance enabled</p>
+    </div>
+    <div class="severity-chip">SEVERITY: HIGH</div>
+  </div>
+
+  <!-- B. Services + Contacts -->
+  <div class="grid-2">
+
+    <!-- B1. Emergency Services -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-icon red">&#x1F691;</div>
+        <div><div class="sub">Emergency Services</div><h3>Response Dispatched</h3></div>
+      </div>
+      <div class="status-row">
+        <div class="dot red"></div>
+        <div class="label">Ambulance — ETA 4 min</div>
+        <span class="tag calling">Calling</span>
+      </div>
+      <div class="status-row">
+        <div class="dot green"></div>
+        <div class="label">Police Alerted</div>
+        <span class="tag sent">Alert Sent</span>
+      </div>
+      <div class="status-row">
+        <div class="dot green"></div>
+        <div class="label">Fire Brigade</div>
+        <span class="tag sent">Standby</span>
+      </div>
+      <div class="status-row">
+        <div class="dot green"></div>
+        <div class="label">Hospital Notified</div>
+        <span class="tag sent">Received</span>
+      </div>
+    </div>
+
+    <!-- B2. Emergency Contacts — populated from login data -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-icon blue">&#x1F465;</div>
+        <div><div class="sub">Emergency Contacts</div><h3>Family Notified</h3></div>
+      </div>
+      <div id="dashContactsList"></div>
+      <div class="status-row">
+        <div class="dot green"></div>
+        <div class="label">Live location shared</div>
+        <span class="tag shared">GPS Link</span>
+      </div>
+      <div class="status-row">
+        <div class="dot green"></div>
+        <div class="label">Medical profile sent</div>
+        <span class="tag sent">Shared</span>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- C. Map -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-icon red">&#x1F4CD;</div>
+      <div><div class="sub">Accident Location</div><h3>Live GPS Coordinates</h3></div>
+    </div>
+    <div class="map-wrap">
+      <iframe
+        src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3806.4987!2d78.4867!3d17.3850!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zMTfCsDIzJzA2LjAiTiA3OMKwMjknMTIuMiJF!5e0!3m2!1sen!2sin!4v1714000000000!5m2!1sen!2sin"
+        allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade"
+        title="Accident Location Map">
+      </iframe>
+    </div>
+    <div class="coord-row">
+      <div class="coord-box"><div class="coord-label">Latitude</div><div class="coord-val">17.3850° N</div></div>
+      <div class="coord-box"><div class="coord-label">Longitude</div><div class="coord-val">78.4867° E</div></div>
+      <div class="coord-box"><div class="coord-label">Accuracy</div><div class="coord-val">±3 meters</div></div>
+    </div>
+  </div>
+
+  <!-- D. AI Guidance + Voice button (steps rebuilt dynamically) -->
+  <div class="grid-2">
+
+    <div class="card">
+      <div class="card-header">
+        <div class="card-icon green">&#x1F916;</div>
+        <div><div class="sub">AI Guidance</div><h3>Immediate Actions</h3></div>
+      </div>
+      <!-- Steps are built dynamically by buildGuidanceSteps() -->
+      <ul class="step-list" id="guidanceSteps"></ul>
+
+      <button class="voice-inline-btn" onclick="playVoiceInstructions(this)">
+        <span class="vi-icon">&#x1F50A;</span>
+        <div>
+          <div>Play Voice Instructions</div>
+          <div class="vi-sub">Reads all steps aloud — personalized for your profile</div>
+        </div>
+      </button>
+    </div>
+
+    <!-- E. Explainable AI panel -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-icon purple">&#x1F9E0;</div>
+        <div><div class="sub">Explainable AI</div><h3>Why this decision?</h3></div>
+      </div>
+
+      <div style="background:var(--red-light);border-left:3px solid var(--red);border-radius:10px;padding:14px 16px;margin-bottom:14px;">
+        <div style="font-size:12px;font-weight:700;color:var(--red-dark);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">&#x1F4CB; Decision Reasoning</div>
+        <div style="display:flex;flex-direction:column;gap:9px;">
+          <div style="display:flex;align-items:flex-start;gap:8px;font-size:13px;color:var(--red-dark);font-weight:600;line-height:1.4;">
+            <span>&#x26A1;</span> High impact force detected — sensor recorded 8.7G peak, exceeding 5G critical threshold.
+          </div>
+          <div style="display:flex;align-items:flex-start;gap:8px;font-size:13px;color:var(--red-dark);font-weight:600;line-height:1.4;">
+            <span>&#x1F6AB;</span> No movement detected — zero gyroscope &amp; accelerometer activity for 18 seconds post-impact.
+          </div>
+          <div style="display:flex;align-items:flex-start;gap:8px;font-size:13px;color:var(--red-dark);font-weight:600;line-height:1.4;">
+            <span>&#x1F9EC;</span> Classified as SEVERE — multi-sensor AI confidence: 94%. Immediate dispatch triggered.
+          </div>
+        </div>
+      </div>
+
+      <div class="xai-reason high"><span style="font-size:16px;">&#x26A1;</span><span>High impact detected — 8.7G acceleration</span></div>
+      <div class="xai-reason high"><span style="font-size:16px;">&#x1F6AB;</span><span>No movement detected for 18 seconds</span></div>
+      <div class="xai-reason medium"><span style="font-size:16px;">&#x1F4CA;</span><span>Airbag deployment signal from OBD-II</span></div>
+      <div class="xai-reason medium"><span style="font-size:16px;">&#x1F4CD;</span><span>GPS velocity: 72 km/h → 0 in 0.4s</span></div>
+      <div class="xai-reason low"><span style="font-size:16px;">&#x1F9EC;</span><span>Classified as SEVERE — confidence 94%</span></div>
+
+      <div class="xai-bar-wrap">
+        <div class="xai-bar-label"><span>AI Confidence</span><span>94%</span></div>
+        <div class="xai-bar-track"><div class="xai-bar-fill" id="confBar" style="width:0%;background:var(--red);"></div></div>
+      </div>
+      <div class="xai-bar-wrap" style="margin-top:8px;">
+        <div class="xai-bar-label"><span>Impact Severity</span><span>8.7 / 10</span></div>
+        <div class="xai-bar-track"><div class="xai-bar-fill" id="impactBar" style="width:0%;background:#BA7517;"></div></div>
+      </div>
+      <div class="xai-bar-wrap" style="margin-top:8px;">
+        <div class="xai-bar-label"><span>Response Priority</span><span>Critical</span></div>
+        <div class="xai-bar-track"><div class="xai-bar-fill" id="priorityBar" style="width:0%;background:#533AB7;"></div></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- F. Personalized AI tips -->
+  <div class="card" id="personalizedCard">
+    <div class="card-header">
+      <div class="card-icon teal">&#x1FA7A;</div>
+      <div>
+        <div class="sub">Personalized AI</div>
+        <h3>Medical Alerts for <span id="dashUserName">User</span></h3>
+      </div>
+    </div>
+    <div id="personalizedTips"></div>
+    <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--gray-mid);">
+      <div style="font-size:12px;font-weight:600;color:var(--gray-text);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:8px;">Medical Profile on File</div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;" id="dashMedProfile"></div>
+    </div>
+  </div>
+
+  <!-- G. Countdown / cancel -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-icon amber">&#x23F1;</div>
+      <div><div class="sub">Safety Window</div><h3>Cancel Alert</h3></div>
+    </div>
+    <div class="countdown-row">
+      <div class="countdown-ring">
+        <svg width="80" height="80" viewBox="0 0 80 80">
+          <circle class="ring-bg" cx="40" cy="40" r="34"/>
+          <circle class="ring-fg" id="ringFg" cx="40" cy="40" r="34"
+            stroke-dasharray="213.6" stroke-dashoffset="0"/>
+        </svg>
+        <div class="num" id="countdownNum">10</div>
+      </div>
+      <div class="countdown-info">
+        <p>If this was a false alarm, press <strong>Cancel Alert</strong> within 10 seconds. After the countdown, all emergency services will be dispatched automatically.</p>
+      </div>
+    </div>
+    <button class="cancel-btn" id="cancelBtn" onclick="cancelAlert()">&#x274C; Cancel Alert</button>
+    <div class="cancelled-msg" id="cancelledMsg">&#x2705; Alert cancelled. Emergency services have been stood down. Stay safe.</div>
+  </div>
+
+</section><!-- end dashboardScreen -->
+
+</main>
+
+<!-- Floating voice repeat button — shown on dashboard -->
+<div class="voice-bar" id="voiceBar">
+  <button class="voice-btn" onclick="speakGuidance()" title="Repeat voice guidance">&#x1F50A;</button>
+  <div class="voice-label">Voice</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     JAVASCRIPT
+═══════════════════════════════════════════════════════════ -->
+<script>
+'use strict';
+
+/* ─────────────────────────────────────────────────────────
+   APP STATE
+   Single source of truth — all screens read from here.
+───────────────────────────────────────────────────────── */
+var userData = {
+  name:              '',    // full name from step 1
+  phone:             '',    // phone from step 1
+  contacts:          [],    // array of strings from step 2
+  bloodGroup:        '',    // select value from step 3
+  medicalConditions: [],    // array of condition strings, e.g. ['asthma','diabetes']
+  medications:       '',    // textarea from step 3
+  allergies:         ''     // text input from step 3
+};
+
+var selectedEmergencyType = null;   // 'accident' | 'medical' | 'fire' | 'safety'
+var countdownTimer        = null;
+var countdownVal          = 10;
+var CIRCUMFERENCE         = 213.6;  // 2 * PI * 34 (SVG circle r=34)
+var alertCancelled        = false;
+
+/* ─────────────────────────────────────────────────────────
+   SCREEN IDs — add launchScreen to the list
+───────────────────────────────────────────────────────── */
+var ALL_SCREENS = [
+  'launchScreen',
+  'loginScreen',
+  'selectionScreen',
+  'detectionScreen',
+  'placeholderScreen',
+  'dashboardScreen'
+];
+
+/*
+  showScreen(id)
+  Hides every section then shows only the one with the given id.
+  Works for all 6 screens. Never breaks.
+*/
+function showScreen(id) {
+  ALL_SCREENS.forEach(function(screenId) {
+    var el = document.getElementById(screenId);
+    if (el) el.style.display = 'none';
+  });
+
+  var target = document.getElementById(id);
+  if (!target) {
+    console.warn('showScreen: unknown screen id "' + id + '"');
+    return;
+  }
+
+  // detectionScreen and dashboardScreen use flex layout
+  target.style.display = 'flex';
+
+  // Scroll to top on every transition
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+/* ─────────────────────────────────────────────────────────
+   LAUNCH SCREEN — auto-transition after 2.5 seconds
+───────────────────────────────────────────────────────── */
+function initApp() {
+  // Start on launch screen (already visible via CSS display:flex)
+  setTimeout(function() {
+    showScreen('loginScreen');
+  }, 2500);
+}
+
+/* ─────────────────────────────────────────────────────────
+   LOGIN — STEP NAVIGATION
+───────────────────────────────────────────────────────── */
+function goToStep(stepNumber) {
+  // Hide all three login step panels
+  document.getElementById('loginStep1').style.display = 'none';
+  document.getElementById('loginStep2').style.display = 'none';
+  document.getElementById('loginStep3').style.display = 'none';
+
+  // Show the requested step
+  document.getElementById('loginStep' + stepNumber).style.display = 'block';
+
+  // Update progress dots: done = green, active = red pill, future = gray
+  for (var i = 1; i <= 3; i++) {
+    var dot = document.getElementById('lstep' + i);
+    dot.className = 'lstep';                    // reset
+    if (i < stepNumber)  dot.classList.add('done');
+    if (i === stepNumber) dot.classList.add('active');
+  }
+}
+
+/* ─────────────────────────────────────────────────────────
+   STEP 1 — OTP FLOW
+───────────────────────────────────────────────────────── */
+var DEMO_OTP = '1234'; // fixed demo OTP
+
+function sendOTP() {
+  var nameEl  = document.getElementById('inputName');
+  var phoneEl = document.getElementById('inputPhone');
+  var name    = nameEl.value.trim();
+  var phone   = phoneEl.value.trim();
+
+  // Validate name
+  if (!name) {
+    nameEl.classList.add('input-error');
+    nameEl.focus();
+    return;
+  }
+  nameEl.classList.remove('input-error');
+
+  // Validate phone
+  if (!phone) {
+    phoneEl.classList.add('input-error');
+    phoneEl.focus();
+    return;
+  }
+  phoneEl.classList.remove('input-error');
+
+  // Show the OTP entry section
+  document.getElementById('otpSection').style.display = 'block';
+
+  var msgEl = document.getElementById('otpSentMsg');
+  msgEl.style.display     = 'block';
+  msgEl.style.background  = '#EAF3DE';
+  msgEl.style.color       = '#3B6D11';
+  msgEl.textContent       = '✅ OTP sent to ' + phone + '  (Demo: use 1234)';
+
+  // Disable send button so it can't be clicked twice
+  var sendBtn = document.getElementById('sendOtpBtn');
+  sendBtn.disabled    = true;
+  sendBtn.textContent = 'Sent ✓';
+
+  // Auto-focus first OTP box
+  document.getElementById('otp1').focus();
+}
+
+// Auto-advance cursor to next OTP box
+function otpMove(current, nextId) {
+  if (current.value.length >= 1 && nextId) {
+    document.getElementById(nextId).focus();
+  }
+}
+
+// Allow backspace to go to previous OTP box
+function otpBack(e, current, prevId) {
+  if (e.key === 'Backspace' && current.value === '' && prevId) {
+    document.getElementById(prevId).focus();
+  }
+}
+
+function verifyOTP() {
+  var name = document.getElementById('inputName').value.trim();
+
+  // If OTP section isn't shown yet, trigger sendOTP first
+  if (document.getElementById('otpSection').style.display === 'none' || !name) {
+    sendOTP();
+    return;
+  }
+
+  var entered = document.getElementById('otp1').value
+              + document.getElementById('otp2').value
+              + document.getElementById('otp3').value
+              + document.getElementById('otp4').value;
+
+  if (entered !== DEMO_OTP) {
+    var msgEl = document.getElementById('otpSentMsg');
+    msgEl.style.display    = 'block';
+    msgEl.style.background = 'var(--red-light)';
+    msgEl.style.color      = 'var(--red-dark)';
+    msgEl.textContent      = '❌ Incorrect OTP. Demo OTP is 1234.';
+    // Clear boxes and re-focus
+    ['otp1','otp2','otp3','otp4'].forEach(function(id) {
+      document.getElementById(id).value = '';
+    });
+    document.getElementById('otp1').focus();
+    return;
+  }
+
+  // OTP is correct — save identity data
+  userData.name  = name;
+  userData.phone = document.getElementById('inputPhone').value.trim();
+
+  goToStep(2);
+}
+
+/* ─────────────────────────────────────────────────────────
+   STEP 2 — EMERGENCY CONTACTS
+───────────────────────────────────────────────────────── */
+function addContact() {
+  var list = document.getElementById('contactsList');
+  var row  = document.createElement('div');
+  row.className = 'contact-row';
+  row.innerHTML =
+    '<input type="text" placeholder="Name &amp; Number" />' +
+    '<button class="remove-btn" onclick="removeContact(this)" title="Remove">&#x2715;</button>';
+  list.appendChild(row);
+}
+
+function removeContact(btn) {
+  var list = document.getElementById('contactsList');
+  // Always keep at least one row
+  if (list.children.length <= 1) return;
+  btn.parentElement.remove();
+}
+
+function goToMedical() {
+  // Collect all non-empty contact inputs and save to userData
+  var inputs = document.querySelectorAll('#contactsList .contact-row input[type="text"]');
+  userData.contacts = [];
+  inputs.forEach(function(inp) {
+    var val = inp.value.trim();
+    if (val) userData.contacts.push(val);
+  });
+
+  goToStep(3);
+}
+
+/* ─────────────────────────────────────────────────────────
+   STEP 3 — MEDICAL CONDITIONS
+   FIX: We use data-condition attribute + .selected CSS class.
+   No hidden checkboxes = no sync bugs.
+───────────────────────────────────────────────────────── */
+
+// Wire up chip clicks after DOM is ready
+document.addEventListener('DOMContentLoaded', function() {
+  var chips = document.querySelectorAll('#conditionChips .cond-chip');
+
+  chips.forEach(function(chip) {
+    chip.addEventListener('click', function() {
+      var condition = chip.getAttribute('data-condition');
+
+      // "None" deselects all others
+      if (condition === 'none') {
+        chips.forEach(function(c) { c.classList.remove('selected'); });
+        chip.classList.add('selected');
+      } else {
+        // Deselect "None" if another condition is picked
+        var noneChip = document.querySelector('#conditionChips .cond-chip[data-condition="none"]');
+        if (noneChip) noneChip.classList.remove('selected');
+        // Toggle this chip
+        chip.classList.toggle('selected');
+      }
+
+      // Update live feedback text
+      updateConditionFeedback();
+    });
+  });
+});
+
+// Show selected conditions as a live feedback line below the chips
+function updateConditionFeedback() {
+  var selected = getSelectedConditions();
+  var feedbackEl = document.getElementById('conditionsFeedback');
+
+  if (selected.length === 0) {
+    feedbackEl.style.display = 'none';
+    return;
+  }
+
+  var labels = {
+    diabetes:     'Diabetes',
+    asthma:       'Asthma',
+    heart:        'Heart Condition',
+    epilepsy:     'Epilepsy',
+    hypertension: 'Hypertension',
+    none:         'None'
+  };
+
+  var names = selected.map(function(c) { return labels[c] || c; });
+  feedbackEl.style.display = 'block';
+  feedbackEl.textContent   = '✓ Selected: ' + names.join(', ');
+}
+
+// Read selected conditions from DOM (.selected class)
+function getSelectedConditions() {
+  var result = [];
+  document.querySelectorAll('#conditionChips .cond-chip.selected').forEach(function(chip) {
+    result.push(chip.getAttribute('data-condition'));
+  });
+  return result;
+}
+
+function completeLogin() {
+  // Read all medical fields
+  userData.bloodGroup        = document.getElementById('inputBloodGroup').value;
+  userData.medicalConditions = getSelectedConditions();   // FIXED: uses DOM .selected class
+  userData.medications       = document.getElementById('inputMeds').value.trim();
+  userData.allergies         = document.getElementById('inputAllergies').value.trim();
+
+  // Also persist to localStorage so data survives if page is refreshed
+  try {
+    localStorage.setItem('autorescue_userData', JSON.stringify(userData));
+  } catch(e) { /* localStorage unavailable — silently skip */ }
+
+  // Update header user chip
+  var chip   = document.getElementById('headerUserChip');
+  var avatar = document.getElementById('headerAvatar');
+  var hname  = document.getElementById('headerName');
+  chip.style.display  = 'flex';
+  avatar.textContent  = userData.name.charAt(0).toUpperCase();
+  hname.textContent   = userData.name.split(' ')[0];
+  document.getElementById('headerBadge').style.display = 'none';
+
+  // Navigate to emergency selection
+  showScreen('selectionScreen');
+  populateSelectionGreeting();
+}
+
+/* ─────────────────────────────────────────────────────────
+   SELECTION SCREEN — greeting
+───────────────────────────────────────────────────────── */
+function populateSelectionGreeting() {
+  var el = document.getElementById('selGreeting');
+  if (!el || !userData.name) return;
+
+  var condMsg = '';
+  if (userData.medicalConditions.length > 0 && userData.medicalConditions[0] !== 'none') {
+    var condLabels = {
+      diabetes:'Diabetes', asthma:'Asthma', heart:'Heart Condition',
+      epilepsy:'Epilepsy', hypertension:'Hypertension'
+    };
+    var names = userData.medicalConditions
+      .filter(function(c) { return c !== 'none'; })
+      .map(function(c) { return condLabels[c] || c; });
+    if (names.length) condMsg = ' Your medical profile (' + names.join(', ') + ') is saved and will personalize AI guidance.';
+  }
+
+  el.textContent = 'Welcome, ' + userData.name + '. Your profile is ready.' + condMsg
+    + ' Select the type of emergency below to activate the appropriate AI response.';
+}
+
+/* ─────────────────────────────────────────────────────────
+   EMERGENCY TYPE SELECTION
+───────────────────────────────────────────────────────── */
+function selectEmergencyType(btn, type) {
+  selectedEmergencyType = type;
+
+  if (type === 'accident') {
+    // Full flow: detection → dashboard
+    showScreen('detectionScreen');
+    playAlertSound();
+    speakText('Severe accident detected. Analyzing situation. Please remain calm.');
+
+    setTimeout(function() {
+      buildDashboard();           // populate all dynamic content
+      showScreen('dashboardScreen');
+      document.getElementById('voiceBar').style.display = 'flex';
+      setTimeout(animateBars, 600);
+      startCountdown();
+      speakGuidance();
+    }, 2200);
+
+  } else {
+    // Non-accident: show placeholder
+    var meta = {
+      medical: {
+        icon:  '🛑',
+        title: 'Medical Emergency Response',
+        body:  'Emergency medical services are being notified. AI is preparing a medical response protocol based on your health profile. Stay on the line — paramedics are being dispatched.'
+      },
+      fire: {
+        icon:  '🔥',
+        title: 'Fire Emergency Response',
+        body:  'Fire brigade and emergency services are being alerted. Evacuate the area immediately. Do not use lifts. Gather at the nearest assembly point.'
+      },
+      safety: {
+        icon:  '🛡️',
+        title: 'Personal Safety Alert Activated',
+        body:  'Your location is being shared with trusted contacts and local law enforcement. Stay in a public area if possible. Help is on the way.'
+      }
+    };
+
+    var m = meta[type] || meta['medical'];
+    document.getElementById('phIcon').textContent  = m.icon;
+    document.getElementById('phTitle').textContent = m.title;
+    document.getElementById('phBody').textContent  = m.body;
+
+    showScreen('placeholderScreen');
+    playAlertSound();
+    speakText(m.title + '. ' + m.body);
+  }
+}
+
+/* ─────────────────────────────────────────────────────────
+   DASHBOARD — BUILD ALL DYNAMIC CONTENT
+───────────────────────────────────────────────────────── */
+function buildDashboard() {
+  // User name in medical alerts heading
+  document.getElementById('dashUserName').textContent = userData.name || 'User';
+
+  // Contacts list
+  buildContactsList();
+
+  // AI guidance steps (personalized)
+  buildGuidanceSteps();
+
+  // Personalized medical tips card
+  buildPersonalizedTips();
+
+  // Medical profile chips
+  buildMedProfileChips();
+
+  // Reset countdown UI state
+  document.getElementById('cancelBtn').style.display    = 'block';
+  document.getElementById('cancelledMsg').style.display = 'none';
+  document.getElementById('countdownNum').textContent   = '10';
+  var ring = document.getElementById('ringFg');
+  ring.style.stroke           = 'var(--red)';
+  ring.style.strokeDashoffset = '0';
+}
+
+// Populate contacts from userData.contacts
+function buildContactsList() {
+  var el       = document.getElementById('dashContactsList');
+  var contacts = userData.contacts.length ? userData.contacts : ['Father — +91 99999 00000'];
+  el.innerHTML = '';
+  contacts.forEach(function(c) {
+    el.innerHTML +=
+      '<div class="status-row">' +
+        '<div class="dot green"></div>' +
+        '<div class="label">' + escHtml(c) + '</div>' +
+        '<span class="tag sent">Alert Sent</span>' +
+      '</div>';
+  });
+}
+
+/*
+  buildGuidanceSteps()
+  Core fix: generates the AI Guidance step list dynamically.
+  Base steps are always shown. Condition-specific steps are inserted
+  right after step 1 with a purple badge to mark them as personalized.
+*/
+function buildGuidanceSteps() {
+  var conditions = userData.medicalConditions.filter(function(c) { return c !== 'none'; });
+
+  // Base guidance steps (always shown)
+  var baseSteps = [
+    'Check if the person is breathing. Do not move them if spinal injury is suspected.',
+    'Do not move the injured person unless there is immediate danger of fire or flooding.',
+    'Call emergency services — they have already been automatically notified.',
+    'Keep the person warm and conscious. Talk to them calmly.',
+    'Ambulance is 4 minutes away. Hazard lights have been activated automatically.'
+  ];
+
+  // Personalized steps inserted based on medical conditions
+  var personalSteps = [];
+  if (conditions.indexOf('asthma') >= 0) {
+    personalSteps.push('&#x1F4A8; Patient has asthma — ensure access to inhaler. Keep airways clear and away from smoke.');
+  }
+  if (conditions.indexOf('diabetes') >= 0) {
+    personalSteps.push('&#x1FA78; Patient has diabetes — check blood sugar levels. Watch for trembling, confusion or sweating.');
+  }
+  if (conditions.indexOf('heart') >= 0) {
+    personalSteps.push('&#x2764; Patient has a heart condition — monitor pulse. Do not administer aspirin without paramedic confirmation.');
+  }
+  if (conditions.indexOf('epilepsy') >= 0) {
+    personalSteps.push('&#x26A1; Patient has epilepsy — if seizure occurs, protect the head. Do not restrain. Time the seizure.');
+  }
+  if (conditions.indexOf('hypertension') >= 0) {
+    personalSteps.push('&#x1F4C8; Patient has hypertension — keep them calm and still. Avoid any strenuous movement.');
+  }
+
+  // Build the HTML
+  var el = document.getElementById('guidanceSteps');
+  el.innerHTML = '';
+
+  var stepNum = 1;
+
+  // Step 1 always first
+  el.innerHTML += makeStep(stepNum++, baseSteps[0], false);
+
+  // Insert personalized steps right after step 1
+  personalSteps.forEach(function(text) {
+    el.innerHTML += makeStep(stepNum++, text, true);
+  });
+
+  // Remaining base steps
+  for (var i = 1; i < baseSteps.length; i++) {
+    el.innerHTML += makeStep(stepNum++, baseSteps[i], false);
+  }
+}
+
+// Helper: build a single <li> step row
+function makeStep(num, text, isPersonal) {
+  var numClass = isPersonal ? 'step-num personal' : 'step-num';
+  return '<li class="step-item">'
+    + '<div class="' + numClass + '">' + num + '</div>'
+    + '<span>' + text + '</span>'
+    + '</li>';
+}
+
+// Build personalized medical tips in the dedicated card
+function buildPersonalizedTips() {
+  var el         = document.getElementById('personalizedTips');
+  var conditions = userData.medicalConditions.filter(function(c) { return c !== 'none'; });
+
+  var tipMap = {
+    asthma:       { icon: '💨', text: 'Patient has asthma — ensure immediate access to inhaler. Keep airways clear. Avoid smoke, dust and strong odours.' },
+    diabetes:     { icon: '🩸', text: 'Patient has diabetes — check blood sugar levels. Watch for hypoglycemia signs: trembling, confusion, sweating, pale skin.' },
+    heart:        { icon: '❤️', text: 'Patient has a heart condition — do NOT administer aspirin without confirmation. Monitor pulse rate continuously.' },
+    epilepsy:     { icon: '⚡', text: 'Patient has epilepsy — if seizure occurs: protect head, do not restrain, time the seizure, and notify paramedics immediately.' },
+    hypertension: { icon: '📈', text: 'Patient has hypertension — keep them calm and still. Avoid strenuous movement. Monitor breathing and consciousness.' }
+  };
+
+  el.innerHTML = '';
+  var hasConditions = false;
+
+  conditions.forEach(function(c) {
+    if (tipMap[c]) {
+      hasConditions = true;
+      el.innerHTML +=
+        '<div class="ai-tip">' +
+          '<span class="ai-tip-icon">' + tipMap[c].icon + '</span>' +
+          '<span>' + tipMap[c].text + '</span>' +
+        '</div>';
+    }
+  });
+
+  if (!hasConditions) {
+    el.innerHTML =
+      '<div class="ai-tip">' +
+        '<span class="ai-tip-icon">&#x1FA7A;</span>' +
+        '<span>No specific medical conditions on file. Standard emergency protocol is being followed.</span>' +
+      '</div>';
+  }
+}
+
+// Build medical profile pills at bottom of personalized card
+function buildMedProfileChips() {
+  var el         = document.getElementById('dashMedProfile');
+  var conditions = userData.medicalConditions.filter(function(c) { return c !== 'none'; });
+  el.innerHTML   = '';
+
+  if (userData.bloodGroup) {
+    el.innerHTML +=
+      '<span style="background:#E6F1FB;color:#185FA5;border-radius:20px;padding:4px 12px;font-size:12px;font-weight:700;">' +
+        '&#x1FA78; ' + escHtml(userData.bloodGroup) +
+      '</span>';
+  }
+
+  conditions.forEach(function(c) {
+    el.innerHTML +=
+      '<span style="background:var(--red-light);color:var(--red-dark);border-radius:20px;padding:4px 12px;font-size:12px;font-weight:700;">' +
+        capFirst(c) +
+      '</span>';
+  });
+
+  if (userData.allergies) {
+    el.innerHTML +=
+      '<span style="background:#FAEEDA;color:#854F0B;border-radius:20px;padding:4px 12px;font-size:12px;font-weight:700;">' +
+        '&#x26A0; Allergy: ' + escHtml(userData.allergies) +
+      '</span>';
+  }
+
+  if (!userData.bloodGroup && !conditions.length && !userData.allergies) {
+    el.innerHTML = '<span style="font-size:13px;color:var(--gray-text);">No medical profile on file.</span>';
+  }
+}
+
+/* ─────────────────────────────────────────────────────────
+   ALERT SOUND  (Web Audio API — no external files needed)
+───────────────────────────────────────────────────────── */
+function playAlertSound() {
+  try {
+    var ctx = new (window.AudioContext || window.webkitAudioContext)();
+    function beep(freq, start, dur) {
+      var osc  = ctx.createOscillator();
+      var gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.type            = 'square';
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.18, ctx.currentTime + start);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + start + dur);
+      osc.start(ctx.currentTime + start);
+      osc.stop(ctx.currentTime + start + dur + 0.05);
+    }
+    beep(880,  0.0, 0.25);
+    beep(660,  0.3, 0.25);
+    beep(880,  0.6, 0.25);
+    beep(660,  0.9, 0.25);
+    beep(1100, 1.2, 0.40);
+  } catch(e) { /* AudioContext not available — silently skip */ }
+}
+
+/* ─────────────────────────────────────────────────────────
+   VOICE GUIDANCE  (speechSynthesis API)
+───────────────────────────────────────────────────────── */
+function speakText(text) {
+  if (!window.speechSynthesis) return;
+  window.speechSynthesis.cancel();
+  var utt   = new SpeechSynthesisUtterance(text);
+  utt.rate  = 0.92;
+  utt.pitch = 1.05;
+  utt.volume = 1;
+  window.speechSynthesis.speak(utt);
+}
+
+// Auto-plays on dashboard load, includes personalized notes
+function speakGuidance() {
+  var conditions = userData.medicalConditions.filter(function(c) { return c !== 'none'; });
+  var medNote = '';
+  if (conditions.indexOf('asthma')    >= 0) medNote += ' Ensure access to inhaler.';
+  if (conditions.indexOf('diabetes')  >= 0) medNote += ' Check blood sugar levels.';
+  if (conditions.indexOf('heart')     >= 0) medNote += ' Monitor heart rate closely.';
+  if (conditions.indexOf('epilepsy')  >= 0) medNote += ' Be prepared for possible seizure.';
+  if (conditions.indexOf('hypertension') >= 0) medNote += ' Keep patient calm and still.';
+
+  speakText(
+    'Accident detected. Stay calm.' +
+    ' Check breathing. Do not move the injured person.' +
+    ' Emergency services have been notified.' +
+    medNote +
+    ' Ambulance is on its way. Your family has been contacted.'
+  );
+}
+
+// Triggered by "Play Voice Instructions" button — reads all steps
+function playVoiceInstructions(btn) {
+  var steps   = document.querySelectorAll('#guidanceSteps .step-item span');
+  var text    = 'Emergency voice instructions. ';
+  steps.forEach(function(s, i) {
+    text += 'Step ' + (i + 1) + '. ' + s.textContent.trim() + ' ';
+  });
+  speakText(text);
+
+  // Visual feedback on the button
+  btn.style.background = 'var(--red-mid)';
+  setTimeout(function() { btn.style.background = ''; }, 1000);
+}
+
+/* ─────────────────────────────────────────────────────────
+   XAI BAR ANIMATIONS
+───────────────────────────────────────────────────────── */
+function animateBars() {
+  var c = document.getElementById('confBar');
+  var i = document.getElementById('impactBar');
+  var p = document.getElementById('priorityBar');
+  if (c) c.style.width = '94%';
+  if (i) i.style.width = '87%';
+  if (p) p.style.width = '100%';
+}
+
+/* ─────────────────────────────────────────────────────────
+   COUNTDOWN (10-second safety cancel window)
+───────────────────────────────────────────────────────── */
+function startCountdown() {
+  clearInterval(countdownTimer);   // clear any previous timer
+  countdownVal   = 10;
+  alertCancelled = false;
+
+  var ring = document.getElementById('ringFg');
+  var num  = document.getElementById('countdownNum');
+
+  countdownTimer = setInterval(function() {
+    if (alertCancelled) {
+      clearInterval(countdownTimer);
+      return;
+    }
+
+    countdownVal--;
+    if (num) num.textContent = Math.max(0, countdownVal);
+
+    // Shrink the SVG ring proportionally
+    var pct = countdownVal / 10;
+    if (ring) ring.style.strokeDashoffset = CIRCUMFERENCE * (1 - pct);
+
+    if (countdownVal <= 0) {
+      clearInterval(countdownTimer);
+      if (num) num.textContent = '0';
+      speakText('Emergency services have been dispatched. Help is on the way.');
+    }
+  }, 1000);
+}
+
+function cancelAlert() {
+  alertCancelled = true;
+  clearInterval(countdownTimer);
+
+  document.getElementById('cancelBtn').style.display    = 'none';
+  document.getElementById('cancelledMsg').style.display = 'block';
+  document.getElementById('countdownNum').textContent   = '✓';
+
+  var ring = document.getElementById('ringFg');
+  if (ring) {
+    ring.style.stroke           = '#639922';
+    ring.style.strokeDashoffset = CIRCUMFERENCE * 0.1;
+  }
+
+  document.getElementById('voiceBar').style.display = 'none';
+  speakText('Alert cancelled. Emergency services have been stood down. Stay safe.');
+}
+
+/* ─────────────────────────────────────────────────────────
+   UTILITIES
+───────────────────────────────────────────────────────── */
+// Escape HTML to safely inject user data into innerHTML
+function escHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+// Capitalize first letter of a word
+function capFirst(str) {
+  if (!str) return '';
+  return str.charAt(0).toUpperCase() + str.slice(1);
+}
+
+/* ─────────────────────────────────────────────────────────
+   INIT
+   Called when the script loads.
+   Shows launchScreen, then transitions to loginScreen after 2.5s.
+───────────────────────────────────────────────────────── */
+initApp();
+</script>
+
+</body>
+</html>
